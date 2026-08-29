@@ -1,4 +1,5 @@
 use core::arch::global_asm;
+use crate::external::{ExternalUefiImage, EXTERNAL_UEFI_IMAGES};
 
 #[derive(Clone, Copy)]
 pub struct VmImage {
@@ -17,6 +18,10 @@ pub fn tiny64() -> VmImage {
         description: "Interactive 64-bit demo OS",
         image: tiny64::image(),
     }
+}
+
+pub fn external_uefi() -> &'static [ExternalUefiImage] {
+    EXTERNAL_UEFI_IMAGES
 }
 
 mod tiny64 {

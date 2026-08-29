@@ -3,6 +3,7 @@
 
 mod arch;
 mod console;
+mod external;
 mod memory;
 mod svm;
 mod vm;
@@ -33,9 +34,20 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     let vms = vm::available();
     loop {
-        let Some(selected_vm) = select_vm(&vms) else {
+        let Some(selection) = select_vm(&vms) else {
             println!("hypervisor: halted by operator");
             arch::halt_forever();
+        };
+        let selected_vm = match selection {
+            MenuSelection::Vm(guest) => guest,
+            MenuSelection::ExternalUefi(guest) => {
+                println!(
+                    "vm: {} is an imported UEFI disk ({} bytes); UEFI guest execution is not implemented yet",
+                    guest.name,
+                    guest.efi.len()
+                );
+                continue;
+            }
         };
         let mut frames = memory::FrameAllocator::new(&boot_info.memory_regions);
         match svm::run(&mut frames, physical_offset, selected_vm) {
@@ -45,11 +57,20 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     }
 }
 
-fn select_vm(vms: &[vm::VmImage]) -> Option<vm::VmImage> {
+enum MenuSelection {
+    Vm(vm::VmImage),
+    ExternalUefi(&'static external::ExternalUefiImage),
+}
+
+fn select_vm(vms: &[vm::VmImage]) -> Option<MenuSelection> {
     println!("");
     println!("Virtual Machine Manager");
     for (index, guest) in vms.iter().enumerate() {
         println!("  [{}] {} - {}", index + 1, guest.name, guest.description);
+    }
+    let external_start = vms.len() + 1;
+    for (index, guest) in vm::external_uefi().iter().enumerate() {
+        println!("  [{}] {} - imported UEFI disk", external_start + index, guest.name);
     }
     println!("  [0] Halt Ferrovisor");
     println!("Select a VM by number, or press Enter for {}.", vms[0].name);
@@ -58,7 +79,7 @@ fn select_vm(vms: &[vm::VmImage]) -> Option<vm::VmImage> {
         let key = console::read_byte_blocking();
         if key == b'\n' || key == b'\r' {
             println!("vm: selected {}", vms[0].name);
-            return Some(vms[0]);
+            return Some(MenuSelection::Vm(vms[0]));
         }
         if key == b'0' {
             return None;
@@ -69,7 +90,14 @@ fn select_vm(vms: &[vm::VmImage]) -> Option<vm::VmImage> {
                 console::write_byte(key);
                 println!("");
                 println!("vm: selected {}", guest.name);
-                return Some(*guest);
+                return Some(MenuSelection::Vm(*guest));
+            }
+            let external_index = index.saturating_sub(vms.len());
+            if let Some(guest) = vm::external_uefi().get(external_index) {
+                console::write_byte(key);
+                println!("");
+                println!("vm: selected {}", guest.name);
+                return Some(MenuSelection::ExternalUefi(guest));
             }
         }
         println!("Invalid selection. Choose a listed VM.");
