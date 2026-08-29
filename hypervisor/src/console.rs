@@ -8,6 +8,8 @@ use core::{
 const VGA_WIDTH: usize = 80;
 const VGA_HEIGHT: usize = 25;
 const VGA_PHYSICAL: u64 = 0xB8000;
+const STATUS_ROW: usize = VGA_HEIGHT - 1;
+const STATUS_TEXT: &[u8] = b" Hyper-V console: use serial pipe ferrovisor-bios-com1 ";
 
 static VGA_ADDRESS: AtomicU64 = AtomicU64::new(0);
 static LOCK: AtomicBool = AtomicBool::new(false);
@@ -44,6 +46,15 @@ unsafe fn clear_unlocked() {
     unsafe {
         ROW = 0;
         COLUMN = 0;
+        draw_status_unlocked();
+    }
+}
+
+unsafe fn draw_status_unlocked() {
+    let base = VGA_ADDRESS.load(Ordering::Relaxed) as *mut u16;
+    for col in 0..VGA_WIDTH {
+        let byte = STATUS_TEXT.get(col).copied().unwrap_or(b' ');
+        unsafe { write_volatile(base.add(STATUS_ROW * VGA_WIDTH + col), 0x1F00 | byte as u16) };
     }
 }
 
@@ -133,20 +144,21 @@ unsafe fn write_colored_byte_unlocked(byte: u8, color: u8) {
 
 unsafe fn scroll_if_needed() {
     unsafe {
-        if ROW < VGA_HEIGHT {
+        if ROW < STATUS_ROW {
             return;
         }
         let base = VGA_ADDRESS.load(Ordering::Relaxed) as *mut u16;
-        for row in 1..VGA_HEIGHT {
+        for row in 1..STATUS_ROW {
             for col in 0..VGA_WIDTH {
                 let value = read_volatile(base.add(row * VGA_WIDTH + col));
                 write_volatile(base.add((row - 1) * VGA_WIDTH + col), value);
             }
         }
         for col in 0..VGA_WIDTH {
-            write_volatile(base.add((VGA_HEIGHT - 1) * VGA_WIDTH + col), 0x0720);
+            write_volatile(base.add((STATUS_ROW - 1) * VGA_WIDTH + col), 0x0720);
         }
-        ROW = VGA_HEIGHT - 1;
+        ROW = STATUS_ROW - 1;
+        draw_status_unlocked();
     }
 }
 
