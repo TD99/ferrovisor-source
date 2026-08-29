@@ -25,8 +25,10 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         .expect("physical memory mapping was not supplied");
 
     console::init(physical_offset);
+    console::show_startup_screen();
     println!("Ferrovisor 0.1 - x86_64 AMD-V type-1 hypervisor");
     println!("boot: Rust kernel entered at CPL0");
+    println!("console: use .\\scripts\\hyperv-console.ps1 -PipeName ferrovisor-bios-com1 for Hyper-V serial I/O");
 
     let mut frames = memory::FrameAllocator::new(&boot_info.memory_regions);
     match svm::run(&mut frames, physical_offset) {
@@ -43,4 +45,3 @@ fn panic(info: &PanicInfo) -> ! {
     println!("PANIC: {}", info);
     arch::halt_forever()
 }
-

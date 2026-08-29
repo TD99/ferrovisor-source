@@ -25,6 +25,17 @@ pub fn clear() {
     unsafe { clear_unlocked() };
 }
 
+pub fn show_startup_screen() {
+    let _guard = ConsoleGuard::lock();
+    unsafe {
+        clear_unlocked();
+        write_colored_text_unlocked("\n  +--------------------------------------------------------------------------+\n", 0x0B);
+        write_colored_text_unlocked("  |                            F E R R O V I S O R                           |\n", 0x0A);
+        write_colored_text_unlocked("  |                  AMD-V / SVM Type-1 Hypervisor                           |\n", 0x07);
+        write_colored_text_unlocked("  +--------------------------------------------------------------------------+\n\n", 0x0B);
+    }
+}
+
 unsafe fn clear_unlocked() {
     let base = VGA_ADDRESS.load(Ordering::Relaxed) as *mut u16;
     for index in 0..VGA_WIDTH * VGA_HEIGHT {
@@ -73,6 +84,16 @@ pub fn read_guest_byte_blocking() -> u8 {
 }
 
 unsafe fn write_byte_unlocked(byte: u8) {
+    unsafe { write_colored_byte_unlocked(byte, 0x0F) };
+}
+
+unsafe fn write_colored_text_unlocked(text: &str, color: u8) {
+    for byte in text.bytes() {
+        unsafe { write_colored_byte_unlocked(byte, color) };
+    }
+}
+
+unsafe fn write_colored_byte_unlocked(byte: u8, color: u8) {
     if byte == 0x0C {
         unsafe { clear_unlocked() };
         return;
@@ -98,7 +119,7 @@ unsafe fn write_byte_unlocked(byte: u8) {
         byte if byte.is_ascii_graphic() || byte == b' ' => unsafe {
             let cell = (VGA_ADDRESS.load(Ordering::Relaxed) as *mut u16)
                 .add(ROW * VGA_WIDTH + COLUMN);
-            write_volatile(cell, 0x0F00 | byte as u16);
+            write_volatile(cell, ((color as u16) << 8) | byte as u16);
             COLUMN += 1;
             if COLUMN == VGA_WIDTH {
                 COLUMN = 0;
