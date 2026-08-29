@@ -2,6 +2,7 @@ use core::ptr::{read_volatile, write_volatile};
 
 const INTERCEPT_MISC1: usize = 0x014;
 const IOPM_BASE_PA: usize = 0x040;
+const MSRPM_BASE_PA: usize = 0x048;
 const GUEST_ASID: usize = 0x058;
 const TLB_CONTROL: usize = 0x05C;
 const EXIT_CODE: usize = 0x070;
@@ -16,6 +17,8 @@ const ES: usize = SAVE + 0x00;
 const CS: usize = SAVE + 0x10;
 const SS: usize = SAVE + 0x20;
 const DS: usize = SAVE + 0x30;
+const FS: usize = SAVE + 0x40;
+const GS: usize = SAVE + 0x50;
 const GDTR: usize = SAVE + 0x60;
 const IDTR: usize = SAVE + 0x80;
 const TR: usize = SAVE + 0x90;
@@ -48,6 +51,7 @@ impl Vmcb {
     pub fn initialize(
         &self,
         iopm_pa: u64,
+        msrpm_pa: u64,
         npt_root: u64,
         guest_cr3: u64,
         tss_base: u64,
@@ -59,6 +63,7 @@ impl Vmcb {
             INTERCEPT_CPUID | INTERCEPT_HLT | INTERCEPT_IOIO,
         );
         self.write_u64(IOPM_BASE_PA, iopm_pa);
+        self.write_u64(MSRPM_BASE_PA, msrpm_pa);
         self.write_u32(GUEST_ASID, 1);
         self.write_u8(TLB_CONTROL, 1);
         self.write_u64(NP_ENABLE, 1);
@@ -68,6 +73,8 @@ impl Vmcb {
         self.segment(SS, 0x10, 0xC093, 0xFFFF_FFFF, 0);
         self.segment(DS, 0x10, 0xC093, 0xFFFF_FFFF, 0);
         self.segment(ES, 0x10, 0xC093, 0xFFFF_FFFF, 0);
+        self.segment(FS, 0x10, 0xC093, 0xFFFF_FFFF, 0);
+        self.segment(GS, 0x10, 0xC093, 0xFFFF_FFFF, 0);
         self.segment(TR, 0x18, 0x008B, 0x67, tss_base);
         self.segment(GDTR, 0, 0, 0x27, 0x5000);
         self.segment(IDTR, 0, 0, 0, 0);

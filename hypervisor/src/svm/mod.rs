@@ -72,11 +72,15 @@ pub fn run(frames: &mut FrameAllocator<'_>, physical_offset: u64) -> Result<(), 
     let vmcb_pa = allocate_zeroed(frames, physical_offset)?;
     let hsave_pa = allocate_zeroed(frames, physical_offset)?;
     let iopm_pa = frames.allocate_contiguous(3)?;
+    let msrpm_pa = frames.allocate_contiguous(2)?;
     unsafe {
         for page in 0..3 {
             memory::zero_page(physical_offset, iopm_pa + page * PAGE_SIZE);
         }
         core::ptr::write_bytes((physical_offset + iopm_pa) as *mut u8, 0xFF, 3 * PAGE_SIZE as usize);
+        for page in 0..2 {
+            memory::zero_page(physical_offset, msrpm_pa + page * PAGE_SIZE);
+        }
     }
 
     let mut pages = [
@@ -100,6 +104,7 @@ pub fn run(frames: &mut FrameAllocator<'_>, physical_offset: u64) -> Result<(), 
     let vmcb = unsafe { Vmcb::at(physical_offset + vmcb_pa) };
     vmcb.initialize(
         iopm_pa,
+        msrpm_pa,
         npt_root,
         GPA_PML4,
         GPA_TSS,
