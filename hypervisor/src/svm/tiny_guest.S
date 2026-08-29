@@ -38,6 +38,18 @@ shell:
     test al, al
     jnz do_halt
 
+    lea rsi, [rip + input_buffer]
+    lea rdi, [rip + cmd_ticks]
+    call string_equal
+    test al, al
+    jnz do_ticks
+
+    lea rsi, [rip + input_buffer]
+    lea rdi, [rip + cmd_echo]
+    call string_starts_with
+    test al, al
+    jnz do_echo
+
     cmp byte ptr [rip + input_buffer], 0
     je shell
     lea rsi, [rip + unknown]
@@ -52,8 +64,11 @@ do_help:
 do_info:
     xor eax, eax
     cpuid
-    lea rsi, [rip + info_text]
+    lea rsi, [rip + info_prefix]
     call puts
+    call print_hex64
+    mov al, 10
+    call putchar
     jmp shell
 
 do_clear:
@@ -66,6 +81,24 @@ do_halt:
     call puts
     hlt
     jmp do_halt
+
+do_ticks:
+    rdtsc
+    shl rdx, 32
+    or rax, rdx
+    lea rsi, [rip + ticks_prefix]
+    call puts
+    call print_hex64
+    mov al, 10
+    call putchar
+    jmp shell
+
+do_echo:
+    lea rsi, [rip + input_buffer + 5]
+    call puts
+    mov al, 10
+    call putchar
+    jmp shell
 
 read_line:
     lea rdi, [rip + input_buffer]
@@ -140,14 +173,54 @@ string_equal:
     xor eax, eax
     ret
 
+string_starts_with:
+starts_compare:
+    mov al, byte ptr [rdi]
+    test al, al
+    je starts_equal
+    cmp al, byte ptr [rsi]
+    jne starts_different
+    inc rsi
+    inc rdi
+    jmp starts_compare
+starts_equal:
+    mov al, 1
+    ret
+starts_different:
+    xor eax, eax
+    ret
+
+print_hex64:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    mov rbx, rax
+    mov ecx, 16
+.digit:
+    rol rbx, 4
+    mov eax, ebx
+    and eax, 0x0f
+    lea rdx, [rip + hex_digits]
+    mov al, byte ptr [rdx + rax]
+    call putchar
+    loop .digit
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    ret
+
 banner:
     .asciz "\nTiny64 guest OS\nRunning inside AMD-V/SVM\nType 'help' for commands.\n\n"
 prompt:
     .asciz "tiny> "
 help_text:
-    .asciz "help  - list commands\ninfo  - execute virtualized CPUID\nclear - clear display\nhalt  - stop the guest\n"
-info_text:
-    .asciz "64-bit guest active; CPUID VMEXIT handled by Ferrovisor.\n"
+    .asciz "help        - list commands\ninfo        - show virtualized CPUID leaf\nticks       - show virtual CPU timestamp\necho <text> - print text\nclear       - clear display\nhalt        - stop the guest\n"
+info_prefix:
+    .asciz "Tiny64 is active; CPUID leaf 0 EAX = 0x"
+ticks_prefix:
+    .asciz "virtual TSC = 0x"
 unknown:
     .asciz "unknown command\n"
 halt_text:
@@ -156,6 +229,10 @@ cmd_help:  .asciz "help"
 cmd_info:  .asciz "info"
 cmd_clear: .asciz "clear"
 cmd_halt:  .asciz "halt"
+cmd_ticks: .asciz "ticks"
+cmd_echo:  .asciz "echo "
+hex_digits:
+    .ascii "0123456789abcdef"
 
 .balign 16
 input_buffer:
