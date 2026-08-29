@@ -1,5 +1,7 @@
 param(
-    [string]$PipeName = "ferrovisor-com1"
+    [string]$PipeName = "ferrovisor-com1",
+    [ValidateRange(1, 3600)]
+    [int]$TimeoutSeconds = 60
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,12 +16,22 @@ $pipe = [System.IO.Pipes.NamedPipeClientStream]::new(
 
 try {
     Write-Host "Waiting for \\.\pipe\$PipeName..."
-    $pipe.Connect()
+    $pipe.Connect($TimeoutSeconds * 1000)
     Write-Host "Connected. Restart the VM if it already booted to see its complete output."
 
-    while (($byte = $pipe.ReadByte()) -ne -1) {
-        [Console]::Write([char]$byte)
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    $buffer = [byte[]]::new(1)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        $read = $pipe.ReadAsync($buffer, 0, 1)
+        if (-not $read.Wait(250)) {
+            continue
+        }
+        if ($read.Result -eq 0) {
+            break
+        }
+        [Console]::Write([char]$buffer[0])
     }
+    Write-Host "`nConsole timeout reached."
 }
 finally {
     $pipe.Dispose()
