@@ -77,12 +77,12 @@ unsafe fn serial_write(byte: u8) {
     unsafe { arch::outb(0x3F8, byte) };
 }
 
-pub fn write_guest_byte(byte: u8) {
+pub fn write_byte(byte: u8) {
     let _guard = ConsoleGuard::lock();
     unsafe { write_byte_unlocked(byte) };
 }
 
-pub fn read_guest_byte_blocking() -> u8 {
+pub fn read_byte_blocking() -> u8 {
     loop {
         if unsafe { arch::inb(0x3FD) } & 1 != 0 {
             return unsafe { arch::inb(0x3F8) };

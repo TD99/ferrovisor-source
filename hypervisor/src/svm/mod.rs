@@ -1,4 +1,3 @@
-mod guest;
 pub(crate) mod keyboard;
 mod vmcb;
 
@@ -6,6 +5,7 @@ use crate::{
     arch,
     console,
     memory::{self, FrameAllocator, PAGE_SIZE},
+    vm::VmImage,
     println,
 };
 use core::arch::{global_asm, x86_64::__cpuid_count};
@@ -61,7 +61,11 @@ struct GuestPage {
     hpa: u64,
 }
 
-pub fn run(frames: &mut FrameAllocator<'_>, physical_offset: u64) -> Result<(), &'static str> {
+pub fn run(
+    frames: &mut FrameAllocator<'_>,
+    physical_offset: u64,
+    guest: VmImage,
+) -> Result<(), &'static str> {
     arch::disable_interrupts();
     let svm_features = check_svm()?;
     println!(
@@ -98,7 +102,7 @@ pub fn run(frames: &mut FrameAllocator<'_>, physical_offset: u64) -> Result<(), 
     }
 
     build_guest_address_space(&pages, physical_offset)?;
-    load_guest(&pages, physical_offset)?;
+    load_guest(&pages, physical_offset, guest.image)?;
     let npt_root = build_nested_page_tables(frames, &pages, physical_offset)?;
 
     let vmcb = unsafe { Vmcb::at(physical_offset + vmcb_pa) };
@@ -117,7 +121,7 @@ pub fn run(frames: &mut FrameAllocator<'_>, physical_offset: u64) -> Result<(), 
         arch::wrmsr(arch::EFER, arch::rdmsr(arch::EFER) | EFER_SVME);
     }
 
-    println!("svm: entering guest at GPA {:#x}", GPA_CODE);
+    println!("svm: starting {} at GPA {:#x}", guest.name, GPA_CODE);
     let mut registers = GuestRegisters::default();
     loop {
         unsafe { svm_vmrun(vmcb_pa, &mut registers) };
@@ -211,8 +215,7 @@ fn build_guest_address_space(
     Ok(())
 }
 
-fn load_guest(pages: &[GuestPage], offset: u64) -> Result<(), &'static str> {
-    let image = guest::image();
+fn load_guest(pages: &[GuestPage], offset: u64, image: &[u8]) -> Result<(), &'static str> {
     if image.len() > PAGE_SIZE as usize {
         return Err("embedded guest exceeds one page");
     }
@@ -281,10 +284,10 @@ fn handle_io(vmcb: &Vmcb) -> Result<(), &'static str> {
         return Err("guest accessed an unsupported I/O port");
     }
     if is_input {
-        let byte = console::read_guest_byte_blocking();
+        let byte = console::read_byte_blocking();
         vmcb.set_rax((vmcb.rax() & !0xFF) | byte as u64);
     } else {
-        console::write_guest_byte(vmcb.rax() as u8);
+        console::write_byte(vmcb.rax() as u8);
     }
     vmcb.advance_to_nrip();
     Ok(())

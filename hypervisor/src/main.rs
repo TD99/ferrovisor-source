@@ -5,6 +5,7 @@ mod arch;
 mod console;
 mod memory;
 mod svm;
+mod vm;
 
 use bootloader_api::{BootInfo, BootloaderConfig, config::Mapping};
 use core::panic::PanicInfo;
@@ -31,7 +32,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     println!("console: use .\\scripts\\hyperv-console.ps1 -PipeName ferrovisor-bios-com1 for Hyper-V serial I/O");
 
     let mut frames = memory::FrameAllocator::new(&boot_info.memory_regions);
-    match svm::run(&mut frames, physical_offset) {
+    match svm::run(&mut frames, physical_offset, vm::tiny64()) {
         Ok(()) => println!("guest stopped cleanly"),
         Err(error) => println!("hypervisor error: {}", error),
     }
