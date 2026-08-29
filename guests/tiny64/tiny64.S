@@ -45,6 +45,24 @@ shell:
     jnz do_ticks
 
     lea rsi, [rip + input_buffer]
+    lea rdi, [rip + cmd_ls]
+    call string_equal
+    test al, al
+    jnz do_ls
+
+    lea rsi, [rip + input_buffer]
+    lea rdi, [rip + cmd_pwd]
+    call string_equal
+    test al, al
+    jnz do_pwd
+
+    lea rsi, [rip + input_buffer]
+    lea rdi, [rip + cmd_cat]
+    call string_starts_with
+    test al, al
+    jnz do_cat
+
+    lea rsi, [rip + input_buffer]
     lea rdi, [rip + cmd_echo]
     call string_starts_with
     test al, al
@@ -98,6 +116,39 @@ do_echo:
     call puts
     mov al, 10
     call putchar
+    jmp shell
+
+do_ls:
+    lea rsi, [rip + fs_listing]
+    call puts
+    jmp shell
+
+do_pwd:
+    lea rsi, [rip + fs_path]
+    call puts
+    jmp shell
+
+do_cat:
+    lea rsi, [rip + input_buffer + 4]
+    lea rdi, [rip + file_readme]
+    call string_equal
+    test al, al
+    jnz cat_readme
+    lea rsi, [rip + input_buffer + 4]
+    lea rdi, [rip + file_about]
+    call string_equal
+    test al, al
+    jnz cat_about
+    lea rsi, [rip + cat_missing]
+    call puts
+    jmp shell
+cat_readme:
+    lea rsi, [rip + readme_text]
+    call puts
+    jmp shell
+cat_about:
+    lea rsi, [rip + about_text]
+    call puts
     jmp shell
 
 read_line:
@@ -216,7 +267,7 @@ banner:
 prompt:
     .asciz "tiny> "
 help_text:
-    .asciz "help        - list commands\ninfo        - show virtualized CPUID leaf\nticks       - show virtual CPU timestamp\necho <text> - print text\nclear       - clear display\nhalt        - stop the guest\n"
+    .asciz "help         - list commands\ninfo         - show virtualized CPUID leaf\nticks        - show virtual CPU timestamp\necho <text>  - print text\nls           - list virtual files\npwd          - show virtual path\ncat <file>   - read a virtual file\nclear        - clear display\nhalt         - stop the guest\n"
 info_prefix:
     .asciz "Tiny64 is active; CPUID leaf 0 EAX = 0x"
 ticks_prefix:
@@ -225,12 +276,27 @@ unknown:
     .asciz "unknown command\n"
 halt_text:
     .asciz "guest halted\n"
+fs_listing:
+    .asciz "README.TXT  ABOUT.TXT\n"
+fs_path:
+    .asciz "/\n"
+cat_missing:
+    .asciz "cat: file not found\n"
+readme_text:
+    .asciz "Tiny64 read-only virtual filesystem.\nTry: cat ABOUT.TXT\n"
+about_text:
+    .asciz "Tiny64 is a demo VM registered with Ferrovisor.\n"
 cmd_help:  .asciz "help"
 cmd_info:  .asciz "info"
 cmd_clear: .asciz "clear"
 cmd_halt:  .asciz "halt"
 cmd_ticks: .asciz "ticks"
 cmd_echo:  .asciz "echo "
+cmd_ls:    .asciz "ls"
+cmd_pwd:   .asciz "pwd"
+cmd_cat:   .asciz "cat "
+file_readme: .asciz "README.TXT"
+file_about:  .asciz "ABOUT.TXT"
 hex_digits:
     .ascii "0123456789abcdef"
 
