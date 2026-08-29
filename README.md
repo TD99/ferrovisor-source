@@ -230,6 +230,34 @@ general OS disk mount mechanism. Booting a larger OS requires a new image loader
 devices. Those additions can register their own `VmImage` entries alongside
 Tiny64 without changing the SVM execution core.
 
+## External UEFI Guest Milestone
+
+External boot disks are staged locally in `guests/local/`. Disk files in that
+directory are gitignored and are never modified by Ferrovisor. To stage the
+RustOS POC image without changing its source copy, use:
+
+```powershell
+Copy-Item C:\Users\tim\RustroverProjects\OS\dist\rustos-poc.img .\guests\local\rustos-poc.img
+```
+
+During each build, Ferrovisor discovers `guests/local/*.img`, validates the GPT
+and FAT32 layout, extracts `EFI/BOOT/BOOTX64.EFI`, and adds the disk to the VM
+manager as an imported UEFI disk. The build fails with a specific error if an
+image is not a GPT/FAT32 UEFI disk with that standard boot path.
+
+Milestone progress:
+
+- Complete: ignored local disk staging, GPT/FAT32 discovery, EFI application
+  extraction, generated catalog entries, and VM-manager visibility.
+- Next: PE/COFF loading, larger guest RAM mappings, a minimal UEFI system table
+  with text console/input protocols, and a UEFI guest launch trampoline.
+- Later: virtual block devices, broader UEFI boot-service support, interrupts,
+  and device emulation for general-purpose operating systems.
+
+Imported UEFI disks are deliberately listed but not launched until the next
+step is complete. Selecting one reports this capability boundary instead of
+running it with an invalid long-mode VMCB payload.
+
 ## Troubleshooting
 
 - **`AMD-V/SVM is not exposed`**: nested virtualization is off, the host CPU is
