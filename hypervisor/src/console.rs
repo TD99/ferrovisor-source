@@ -9,7 +9,7 @@ const VGA_WIDTH: usize = 80;
 const VGA_HEIGHT: usize = 25;
 const VGA_PHYSICAL: u64 = 0xB8000;
 const STATUS_ROW: usize = VGA_HEIGHT - 1;
-const STATUS_TEXT: &[u8] = b" Hyper-V console: use serial pipe ferrovisor-bios-com1 ";
+const STATUS_TEXT: &[u8] = b" Hyper-V: .\\scripts\\hyperv-console.ps1 -PipeName ferrovisor-bios-com1 ";
 
 static VGA_ADDRESS: AtomicU64 = AtomicU64::new(0);
 static LOCK: AtomicBool = AtomicBool::new(false);
