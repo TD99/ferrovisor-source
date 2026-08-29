@@ -217,7 +217,7 @@ fn build_guest_address_space(
 
 fn load_guest(pages: &[GuestPage], offset: u64, image: &[u8]) -> Result<(), &'static str> {
     if image.len() > PAGE_SIZE as usize {
-        return Err("embedded guest exceeds one page");
+        return Err("guest image exceeds one page");
     }
     unsafe {
         core::ptr::copy_nonoverlapping(

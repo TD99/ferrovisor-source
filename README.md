@@ -2,7 +2,7 @@
 
 Ferrovisor is a small educational type-1 (bare-metal) hypervisor for x86_64 AMD
 processors. It boots directly through BIOS or UEFI, enables AMD-V/SVM, creates a
-VMCB and nested page tables, and runs an embedded 64-bit terminal guest.
+VMCB and nested page tables, and presents a catalog of 64-bit guest images.
 
 This milestone intentionally virtualizes the included Tiny64 guest rather than
 Linux. Linux support needs an ELF/bzImage loader, a larger guest-physical memory
@@ -18,8 +18,9 @@ emulation; those are kept out of the first trustworthy bootable core.
 - Correct guest GPR preservation around `VMRUN`
 - `CPUID`, `IOIO`, and `HLT` VMEXIT handling
 - Virtual COM1 connected to the VGA text console and host serial port
-- PS/2 keyboard input for the guest shell
-- Tiny64 commands: `help`, `info`, `clear`, and `halt`
+- Serial-pipe and PS/2 keyboard input for the VM selector and guest shell
+- A pre-boot VM selector with registered guest images
+- Tiny64 commands: `help`, `info`, `ticks`, `echo`, `ls`, `pwd`, `cat`, `clear`, and `halt`
 
 This is an educational prototype, not a security boundary or production VMM.
 It is single-vCPU, AMD-only, uses a US set-1 keyboard map, and deliberately
@@ -27,8 +28,8 @@ stops on any unexpected VM exit.
 
 ### Validation status
 
-The two assembly payloads have been assembled and inspected, have no remaining
-relocations, and the embedded guest is 688 bytes. The source was produced in an
+The assembly payloads have been assembled and inspected, have no remaining
+relocations, and the Tiny64 image fits within the current 4 KiB raw-image limit. The source was produced in an
 environment without a Rust toolchain or an AMD nested-virtualization target, so
 the final Cargo build and VMware/AMD-V boot must be performed on the target
 Windows machine. Treat the first run as hardware bring-up, not as a previously
@@ -86,8 +87,8 @@ VHDX file so QEMU can replace it.
 1. In VMware Workstation, choose **File > Open** and select
    `dist/ferrovisor-bios.vmx` (recommended) or `dist/ferrovisor-uefi.vmx`.
 2. Select **I Copied It** if VMware asks how the VM was obtained.
-3. Boot the VM. The console should show the Ferrovisor banner followed by the
-   `tiny>` prompt.
+3. Boot the VM, select Tiny64 from the Ferrovisor VM menu, then use the `tiny>`
+   prompt.
 
 The generated VMX files configure **Other / Other 64-bit**, one vCPU/core,
 512 MB RAM, an IDE disk, and nested virtualization (`vhv.enable = "TRUE"`).
@@ -107,8 +108,7 @@ Do not move a `.vmx` file away from its matching `.vmdk` and `.img` files.
 5. Use legacy BIOS firmware for the BIOS image. For the UEFI image, change the
    VM firmware to UEFI, disable Secure Boot, and attach
    `dist/ferrovisor-uefi.vmdk` instead.
-6. Boot. The VMware console should show the Ferrovisor banner followed by the
-   `tiny>` prompt.
+6. Boot, select Tiny64 from the Ferrovisor VM menu, then use the `tiny>` prompt.
 
 The VGA text console is designed around the recommended BIOS configuration.
 The UEFI image is generated for bring-up and serial-console work; graphical GOP
@@ -144,13 +144,14 @@ Open a second PowerShell window and run the included pipe reader before starting
 the VM:
 
 ```powershell
-.\scripts\hyperv-console.ps1
+    .\scripts\hyperv-console.ps1 -PipeName ferrovisor-bios-com1
 ```
 
-The reader waits for Hyper-V to create the pipe and prints COM1 output,
+The reader waits for Hyper-V to create the pipe, accepts typed guest input, and prints COM1 output,
 including the boot banner and SVM capability errors. If it connects after the
 VM boots, restart the VM to replay its startup output. PuTTY's serial backend
-is not recommended for this named-pipe connection.
+is not recommended for this named-pipe connection. It runs until disconnected by
+default; use `-TimeoutSeconds 60` to set a timeout.
 
 For a Generation 2 VM, disable Secure Boot with:
 
@@ -203,17 +204,31 @@ hypervisor/src/
     mod.rs              SVM lifecycle, NPT, VMEXIT dispatch
     vmcb.rs             typed VMCB offset access
     run.S               VMRUN register-preservation trampoline
-    tiny_guest.S        position-independent Tiny64 guest
-    guest.rs            embedded guest image boundary
     keyboard.rs         PS/2 set-1 input
+  vm.rs                 VM image catalog and guest-image boundary
+guests/
+  tiny64/tiny64.S       position-independent Tiny64 guest image
 scripts/                Windows and Unix build entrypoints
 vmware/                 VMware configuration notes
 ```
 
-The guest uses four-level identity paging. A second four-level page-table tree
-implements AMD nested paging and maps only seven guest pages. All guest COM1
+The selected guest uses four-level identity paging. A second four-level page-table tree
+implements AMD nested paging and maps only eight guest pages. All guest COM1
 accesses are intercepted. Output is mirrored to VGA and the real COM1; input
-blocks in the hypervisor until a supported PS/2 key arrives.
+blocks in the hypervisor until serial-pipe or supported PS/2 input arrives.
+
+## Guests and VM Catalog
+
+The hypervisor owns the VM catalog in `hypervisor/src/vm.rs`; guest payloads live
+outside the hypervisor in `guests/`. Each catalog entry is a `VmImage`, so adding
+another guest does not require placing its source or symbols under `svm/`.
+
+The current loader intentionally accepts a position-independent, long-mode raw
+image no larger than one 4 KiB page. It is a clean image boundary, not yet a
+general OS disk mount mechanism. Booting a larger OS requires a new image loader
+(for example ELF or Linux bzImage), guest RAM ranges, and virtual block/console
+devices. Those additions can register their own `VmImage` entries alongside
+Tiny64 without changing the SVM execution core.
 
 ## Troubleshooting
 
