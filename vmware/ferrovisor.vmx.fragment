@@ -1,0 +1,10 @@
+# Generated VMX files in dist/ include these settings. This fragment is only
+# useful when applying the same configuration to a manually created VM.
+vhv.enable = "TRUE"
+firmware = "bios"
+guestOS = "other-64"
+numvcpus = "1"
+memsize = "512"
+
+# Attach dist/ferrovisor-bios.vmdk through the VMware UI as an existing IDE disk.
+# Do not blindly paste disk filenames: VMware writes controller/device metadata.
