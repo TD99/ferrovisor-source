@@ -1,5 +1,7 @@
 /target/
 /dist/
+/guests/local/*
+!/guests/local/.gitkeep
 /.idea/
 /.cargo/registry/
 /.cargo/git/
