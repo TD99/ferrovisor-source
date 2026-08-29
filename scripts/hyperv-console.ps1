@@ -13,7 +13,7 @@ $pipe = [System.IO.Pipes.NamedPipeClientStream]::new(
     ".",
     $PipeName,
     [System.IO.Pipes.PipeDirection]::InOut,
-    [System.IO.Pipes.PipeOptions]::None
+    [System.IO.Pipes.PipeOptions]::Asynchronous
 )
 
 try {
