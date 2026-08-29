@@ -29,15 +29,16 @@ try {
     $pipe.Flush()
 
     $deadline = if ($NoTimeout) { [DateTime]::MaxValue } else { [DateTime]::UtcNow.AddSeconds($TimeoutSeconds) }
-    $buffer = [byte[]]::new(1)
-    $read = $pipe.ReadAsync($buffer, 0, 1)
+    $buffer = [byte[]]::new(4096)
+    $read = $pipe.ReadAsync($buffer, 0, $buffer.Length)
     while ([DateTime]::UtcNow -lt $deadline) {
         if ($read.IsCompleted) {
-            if ($read.GetAwaiter().GetResult() -eq 0) {
+            $count = $read.GetAwaiter().GetResult()
+            if ($count -eq 0) {
                 break
             }
-            [Console]::Write([char]$buffer[0])
-            $read = $pipe.ReadAsync($buffer, 0, 1)
+            [Console]::Write($encoding.GetString($buffer, 0, $count))
+            $read = $pipe.ReadAsync($buffer, 0, $buffer.Length)
         }
 
         while ([Console]::KeyAvailable) {
