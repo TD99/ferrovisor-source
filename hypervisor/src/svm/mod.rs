@@ -161,7 +161,11 @@ fn check_svm() -> Result<u32, &'static str> {
     if vm_cr & VM_CR_SVMDIS != 0 {
         return Err("firmware or outer hypervisor locked SVM off (VM_CR.SVMDIS)");
     }
-    let features = __cpuid_count(0x8000_000A, 0).edx;
+    let svm_info = __cpuid_count(0x8000_000A, 0);
+    if svm_info.ebx < 2 {
+        return Err("SVM reports too few guest ASIDs");
+    }
+    let features = svm_info.edx;
     if features & (SVM_NESTED_PAGING | SVM_NRIP_SAVE)
         != SVM_NESTED_PAGING | SVM_NRIP_SAVE
     {

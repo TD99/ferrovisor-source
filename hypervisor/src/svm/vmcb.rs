@@ -69,12 +69,12 @@ impl Vmcb {
         self.write_u64(NP_ENABLE, 1);
         self.write_u64(N_CR3, npt_root);
 
-        self.segment(CS, 0x08, 0xA09B, 0xFFFF_FFFF, 0);
-        self.segment(SS, 0x10, 0xC093, 0xFFFF_FFFF, 0);
-        self.segment(DS, 0x10, 0xC093, 0xFFFF_FFFF, 0);
-        self.segment(ES, 0x10, 0xC093, 0xFFFF_FFFF, 0);
-        self.segment(FS, 0x10, 0xC093, 0xFFFF_FFFF, 0);
-        self.segment(GS, 0x10, 0xC093, 0xFFFF_FFFF, 0);
+        self.segment(CS, 0x08, 0x0A9B, 0xFFFF_FFFF, 0);
+        self.segment(SS, 0x10, 0x0C93, 0xFFFF_FFFF, 0);
+        self.segment(DS, 0x10, 0x0C93, 0xFFFF_FFFF, 0);
+        self.segment(ES, 0x10, 0x0C93, 0xFFFF_FFFF, 0);
+        self.segment(FS, 0x10, 0x0C93, 0xFFFF_FFFF, 0);
+        self.segment(GS, 0x10, 0x0C93, 0xFFFF_FFFF, 0);
         self.segment(TR, 0x18, 0x008B, 0x67, tss_base);
         self.segment(GDTR, 0, 0, 0x27, 0x5000);
         self.segment(IDTR, 0, 0, 0, 0);
