@@ -1,6 +1,6 @@
 use core::ptr::{read_volatile, write_volatile};
 
-const INTERCEPT_MISC1: usize = 0x014;
+const INTERCEPT_MISC1: usize = 0x00C;
 const IOPM_BASE_PA: usize = 0x040;
 const MSRPM_BASE_PA: usize = 0x048;
 const GUEST_ASID: usize = 0x058;
