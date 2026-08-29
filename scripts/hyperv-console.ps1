@@ -1,7 +1,7 @@
 param(
     [string]$PipeName = "ferrovisor-com1",
-    [ValidateRange(1, 3600)]
-    [int]$TimeoutSeconds = 60,
+    [ValidateRange(0, 3600)]
+    [int]$TimeoutSeconds = 0,
     [switch]$NoTimeout,
     [string[]]$Send
 )
@@ -28,7 +28,7 @@ try {
     }
     $pipe.Flush()
 
-    $deadline = if ($NoTimeout) { [DateTime]::MaxValue } else { [DateTime]::UtcNow.AddSeconds($TimeoutSeconds) }
+    $deadline = if ($NoTimeout -or $TimeoutSeconds -eq 0) { [DateTime]::MaxValue } else { [DateTime]::UtcNow.AddSeconds($TimeoutSeconds) }
     $buffer = [byte[]]::new(4096)
     $read = $pipe.ReadAsync($buffer, 0, $buffer.Length)
     while ([DateTime]::UtcNow -lt $deadline) {
@@ -58,7 +58,7 @@ try {
         }
         Start-Sleep -Milliseconds 10
     }
-    if (-not $NoTimeout) {
+    if (-not $NoTimeout -and $TimeoutSeconds -ne 0) {
         Write-Host "`nConsole timeout reached."
     }
 }
