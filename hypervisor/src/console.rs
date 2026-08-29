@@ -15,6 +15,7 @@ static VGA_ADDRESS: AtomicU64 = AtomicU64::new(0);
 static LOCK: AtomicBool = AtomicBool::new(false);
 static mut COLUMN: usize = 0;
 static mut ROW: usize = 0;
+static mut COLOR: u8 = 0x0F;
 
 pub fn init(physical_offset: u64) {
     VGA_ADDRESS.store(physical_offset + VGA_PHYSICAL, Ordering::Relaxed);
@@ -94,8 +95,23 @@ pub fn read_byte_blocking() -> u8 {
     }
 }
 
+pub fn set_cursor_column(column: usize) {
+    let _guard = ConsoleGuard::lock();
+    unsafe { COLUMN = column.min(VGA_WIDTH - 1) };
+}
+
+pub fn set_cursor_row(row: usize) {
+    let _guard = ConsoleGuard::lock();
+    unsafe { ROW = row.min(VGA_HEIGHT - 1) };
+}
+
+pub fn set_attribute(color: u8) {
+    let _guard = ConsoleGuard::lock();
+    unsafe { COLOR = color };
+}
+
 unsafe fn write_byte_unlocked(byte: u8) {
-    unsafe { write_colored_byte_unlocked(byte, 0x0F) };
+    unsafe { write_colored_byte_unlocked(byte, COLOR) };
 }
 
 unsafe fn write_colored_text_unlocked(text: &str, color: u8) {

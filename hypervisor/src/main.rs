@@ -38,21 +38,18 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             println!("hypervisor: halted by operator");
             arch::halt_forever();
         };
-        let selected_vm = match selection {
-            MenuSelection::Vm(guest) => guest,
-            MenuSelection::ExternalUefi(guest) => {
-                println!(
-                    "vm: {} is an imported UEFI disk ({} bytes); UEFI guest execution is not implemented yet",
-                    guest.name,
-                    guest.efi.len()
-                );
-                continue;
-            }
-        };
         let mut frames = memory::FrameAllocator::new(&boot_info.memory_regions);
-        match svm::run(&mut frames, physical_offset, selected_vm) {
-            Ok(()) => println!("vm: {} stopped; returning to manager", selected_vm.name),
-            Err(error) => println!("hypervisor error: {}", error),
+        match selection {
+            MenuSelection::Vm(guest) => match svm::run(&mut frames, physical_offset, guest) {
+                Ok(()) => println!("vm: {} stopped; returning to manager", guest.name),
+                Err(error) => println!("hypervisor error: {}", error),
+            },
+            MenuSelection::ExternalUefi(guest) => {
+                match svm::run_uefi(&mut frames, physical_offset, guest) {
+                    Ok(()) => println!("vm: {} stopped; returning to manager", guest.name),
+                    Err(error) => println!("hypervisor error: {}", error),
+                }
+            }
         }
     }
 }

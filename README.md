@@ -223,12 +223,11 @@ The hypervisor owns the VM catalog in `hypervisor/src/vm.rs`; guest payloads liv
 outside the hypervisor in `guests/`. Each catalog entry is a `VmImage`, so adding
 another guest does not require placing its source or symbols under `svm/`.
 
-The current loader intentionally accepts a position-independent, long-mode raw
-image no larger than one 4 KiB page. It is a clean image boundary, not yet a
-general OS disk mount mechanism. Booting a larger OS requires a new image loader
-(for example ELF or Linux bzImage), guest RAM ranges, and virtual block/console
-devices. Those additions can register their own `VmImage` entries alongside
-Tiny64 without changing the SVM execution core.
+The built-in Tiny64 loader intentionally accepts a position-independent,
+long-mode raw image no larger than one 4 KiB page. External UEFI applications
+use a separate PE/COFF loader and can occupy a larger guest address space.
+Neither path is a general OS disk mount mechanism; virtual block devices and
+broader UEFI boot-service support remain future work.
 
 ## External UEFI Guest Milestone
 
@@ -248,15 +247,16 @@ image is not a GPT/FAT32 UEFI disk with that standard boot path.
 Milestone progress:
 
 - Complete: ignored local disk staging, GPT/FAT32 discovery, EFI application
-  extraction, generated catalog entries, and VM-manager visibility.
-- Next: PE/COFF loading, larger guest RAM mappings, a minimal UEFI system table
-  with text console/input protocols, and a UEFI guest launch trampoline.
-- Later: virtual block devices, broader UEFI boot-service support, interrupts,
-  and device emulation for general-purpose operating systems.
+  extraction, generated catalog entries, PE/COFF relocation/loading, larger
+  guest mappings, a UEFI launch trampoline, and serial-backed text
+  console/input protocols.
+- Next: virtual block devices and broader UEFI boot-service support.
+- Later: interrupts and device emulation for general-purpose operating systems.
 
-Imported UEFI disks are deliberately listed but not launched until the next
-step is complete. Selecting one reports this capability boundary instead of
-running it with an invalid long-mode VMCB payload.
+Select an imported UEFI disk from the VM manager to launch its
+`EFI/BOOT/BOOTX64.EFI` application. The current UEFI environment is intentionally
+small: applications that require block I/O, filesystem protocols, or other
+unimplemented boot services are not supported yet.
 
 ## Troubleshooting
 
