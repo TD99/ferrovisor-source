@@ -1,6 +1,7 @@
 use core::ptr::{read_volatile, write_volatile};
 
 const INTERCEPT_MISC1: usize = 0x00C;
+const INTERCEPT_MISC2: usize = 0x010;
 const IOPM_BASE_PA: usize = 0x040;
 const MSRPM_BASE_PA: usize = 0x048;
 const GUEST_ASID: usize = 0x058;
@@ -38,6 +39,7 @@ const G_PAT: usize = SAVE + 0x268;
 const INTERCEPT_CPUID: u32 = 1 << 18;
 const INTERCEPT_HLT: u32 = 1 << 24;
 const INTERCEPT_IOIO: u32 = 1 << 27;
+const INTERCEPT_VMRUN: u32 = 1 << 0;
 
 pub struct Vmcb {
     base: *mut u8,
@@ -62,6 +64,7 @@ impl Vmcb {
             INTERCEPT_MISC1,
             INTERCEPT_CPUID | INTERCEPT_HLT | INTERCEPT_IOIO,
         );
+        self.write_u32(INTERCEPT_MISC2, INTERCEPT_VMRUN);
         self.write_u64(IOPM_BASE_PA, iopm_pa);
         self.write_u64(MSRPM_BASE_PA, msrpm_pa);
         self.write_u32(GUEST_ASID, 1);
@@ -79,7 +82,7 @@ impl Vmcb {
         self.segment(GDTR, 0, 0, 0x27, 0x5000);
         self.segment(IDTR, 0, 0, 0, 0);
         self.write_u8(CPL, 0);
-        self.write_u64(EFER, (1 << 8) | (1 << 10));
+        self.write_u64(EFER, (1 << 8) | (1 << 10) | (1 << 12));
         self.write_u64(CR4, 1 << 5);
         self.write_u64(CR3, guest_cr3);
         self.write_u64(CR0, 0x8001_0033);
