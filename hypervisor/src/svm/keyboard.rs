@@ -1,21 +1,24 @@
 use crate::arch;
+use core::sync::atomic::{AtomicBool, Ordering};
 
-pub fn read_ascii_blocking() -> u8 {
-    let mut shift = false;
-    loop {
-        while unsafe { arch::inb(0x64) } & 1 == 0 {
-            core::hint::spin_loop();
+static SHIFT: AtomicBool = AtomicBool::new(false);
+
+pub fn try_read_ascii() -> Option<u8> {
+    if unsafe { arch::inb(0x64) } & 1 == 0 {
+        return None;
+    }
+    let code = unsafe { arch::inb(0x60) };
+    match code {
+        0x2A | 0x36 => {
+            SHIFT.store(true, Ordering::Relaxed);
+            None
         }
-        let code = unsafe { arch::inb(0x60) };
-        match code {
-            0x2A | 0x36 => { shift = true; continue; }
-            0xAA | 0xB6 => { shift = false; continue; }
-            code if code & 0x80 != 0 => continue,
-            _ => {}
+        0xAA | 0xB6 => {
+            SHIFT.store(false, Ordering::Relaxed);
+            None
         }
-        if let Some(byte) = map_set1(code, shift) {
-            return byte;
-        }
+        code if code & 0x80 != 0 => None,
+        _ => map_set1(code, SHIFT.load(Ordering::Relaxed)),
     }
 }
 
@@ -45,4 +48,3 @@ fn map_set1(code: u8, shift: bool) -> Option<u8> {
         normal
     })
 }
-

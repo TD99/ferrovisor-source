@@ -1,5 +1,5 @@
 mod guest;
-mod keyboard;
+pub(crate) mod keyboard;
 mod vmcb;
 
 use crate::{
@@ -281,7 +281,7 @@ fn handle_io(vmcb: &Vmcb) -> Result<(), &'static str> {
         return Err("guest accessed an unsupported I/O port");
     }
     if is_input {
-        let byte = keyboard::read_ascii_blocking();
+        let byte = console::read_guest_byte_blocking();
         vmcb.set_rax((vmcb.rax() & !0xFF) | byte as u64);
     } else {
         console::write_guest_byte(vmcb.rax() as u8);

@@ -1,4 +1,4 @@
-use crate::arch;
+use crate::{arch, svm::keyboard};
 use core::{
     fmt::{self, Write},
     ptr::{read_volatile, write_volatile},
@@ -58,6 +58,18 @@ unsafe fn serial_write(byte: u8) {
 pub fn write_guest_byte(byte: u8) {
     let _guard = ConsoleGuard::lock();
     unsafe { write_byte_unlocked(byte) };
+}
+
+pub fn read_guest_byte_blocking() -> u8 {
+    loop {
+        if unsafe { arch::inb(0x3FD) } & 1 != 0 {
+            return unsafe { arch::inb(0x3F8) };
+        }
+        if let Some(byte) = keyboard::try_read_ascii() {
+            return byte;
+        }
+        core::hint::spin_loop();
+    }
 }
 
 unsafe fn write_byte_unlocked(byte: u8) {
