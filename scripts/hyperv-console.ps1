@@ -18,7 +18,12 @@ $pipe = [System.IO.Pipes.NamedPipeClientStream]::new(
 
 try {
     Write-Host "Waiting for \\.\pipe\$PipeName..."
-    $pipe.Connect($TimeoutSeconds * 1000)
+    if ($NoTimeout -or $TimeoutSeconds -eq 0) {
+        $pipe.Connect()
+    }
+    else {
+        $pipe.Connect($TimeoutSeconds * 1000)
+    }
     Write-Host "Connected. Type into this terminal to send text to the Tiny64 guest."
 
     $encoding = [Text.Encoding]::ASCII
